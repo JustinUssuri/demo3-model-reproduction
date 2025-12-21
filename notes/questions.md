@@ -1,8 +1,15 @@
-# Demo3 Questions (living list)
+# Demo3 – Reproduction Target (locked)
 
-## Model selection
-- What specific model/paper am I reproducing?
-- What is the smallest reproducible core?
+Chosen model: PyPSA-GB
+
+Rationale:
+- Smaller geographic scope → higher probability of full reproduction
+- Clear system narrative (generation, demand, network constraints)
+- Methods and modeling choices are transferable beyond the UK context
+
+Decision date: YYYY-MM-DD
+This choice will not be revisited unless reproduction is completed.
+
 
 ## Understanding
 - What problem is the model solving (planning / dispatch / expansion)?
