@@ -1,35 +1,28 @@
-# Demo3 v0.1 — Development Architecture (Integrated)
+# Demo3 v0.1 — Development Architecture (Aligned with Tech Design)
 
-This document consolidates the **runtime dataflow**, **module dependency view**, and **module boundary notes** for Demo3 v0.1.
+This document summarizes the **runtime dataflow**, **module dependencies**, and **module boundaries** for Demo3 v0.1, aligned to the toy GB-inspired DC vs AC agreement study.
 
 ---
 
-## 1) Runtime Dataflow Architecture
+## 1) Runtime Dataflow
 
 ```mermaid
 flowchart TD
-  A[User / CLI<br/>run_experiments.py] --> B[Experiment Orchestrator<br/>parse args, select suite, seed]
-  B --> C[Case Factory<br/>src/cases.py<br/>toy networks + sweep generator]
-  C --> D1[DC Solver<br/>src/dc_flow.py<br/>DC power flow]
-  C --> D2["AC Reference\nsrc/ac_flow.py\npandapower (preferred)\nPyPSA AC fallback"]
-  D1 --> E[Metrics Engine<br/>src/metrics.py<br/>errors + ranking mismatch + feasibility flags]
+  A[User / CLI<br/>run_experiments.py] --> B[Experiment Orchestrator<br/>parse args, select sweep]
+  B --> C[Case Factory<br/>src/cases.py<br/>3-bus toy network + alpha grid]
+  C --> D1[DC Solver<br/>src/dc_flow.py<br/>lossless DC flow]
+  C --> D2["AC Reference\nsrc/ac_flow.py\npandapower AC flow"]
+  D1 --> E[Metrics Engine<br/>src/metrics.py<br/>flow errors + congestion consistency + convergence]
   D2 --> E
-  E --> F1[Results Writer<br/>results/tables/*.csv]
+  E --> F1[Results Table<br/>results/tables/sweep.csv]
   E --> F2[Plotting<br/>src/plotting.py<br/>results/figures/*.png]
-  F1 --> G[Research Write-up Stub<br/>results/summary.md]
+  F1 --> G[Write-up Stub<br/>results/summary.md]
   F2 --> G
-  B --> H[Docs Layer<br/>README.md / assumptions.md / paper_to_model.md]
-  G --> H
-
-  subgraph "Suites (v0.1)"
-    S1[Sweep S1<br/>angle/transfer stress] --> C
-    S2[Sweep S2<br/>high R/X stress] --> C
-  end
 ```
 
 ---
 
-## 2) Code Module Dependency Architecture
+## 2) Module Dependency View
 
 ```mermaid
 flowchart LR
@@ -46,15 +39,9 @@ flowchart LR
   end
 
   subgraph Artifacts
-    TBL[results/tables/]
-    FIG[results/figures/]
+    TBL[results/tables/sweep.csv]
+    FIG[results/figures/*.png]
     SUM[results/summary.md]
-  end
-
-  subgraph Docs
-    R[README.md]
-    A[assumptions.md]
-    P[paper_to_model.md]
   end
 
   CLI --> CASES
@@ -72,9 +59,6 @@ flowchart LR
   PLOT --> FIG
   TBL --> SUM
   FIG --> SUM
-  SUM --> R
-  SUM --> A
-  SUM --> P
 ```
 
 ---
@@ -82,35 +66,26 @@ flowchart LR
 ## 3) Module Boundaries (v0.1)
 
 - **`src/cases.py`**
-  - Generates *networks + operating conditions* for baseline cases and sweeps.
-  - Outputs: buses/branches metadata, injections (P), and any case labels/parameters.
+  - Defines the 3-bus toy network and alpha sweep grid.
+  - Outputs: buses/branches, injections (P), and case labels/parameters.
 
 - **`src/dc_flow.py`**
-  - Given a case/network + injections, computes DC power flow results.
-  - Outputs: per-branch active power flows, nodal angles (if applicable), feasibility flags.
+  - Computes lossless DC flows for each case.
+  - Outputs: per-branch active power flows, optional angles, feasibility flags.
 
 - **`src/ac_flow.py`**
-  - AC reference solver (prefer pandapower; fallback acceptable).
-  - Outputs: per-branch active power flows (and optionally voltage magnitudes/angles), feasibility flags.
+  - AC reference solver using pandapower.
+  - Outputs: per-branch active power flows, optional voltage magnitudes/angles, convergence flag.
 
 - **`src/metrics.py`**
-  - Compares DC vs AC outputs and produces decision-relevant metrics:
-    - flow error norms
-    - congestion / ranking mismatches
-    - feasibility mismatch flags
-  - Outputs: a structured metrics object + row-wise records for CSV.
+  - Computes flow errors and congestion indicator consistency across the sweep.
+  - Outputs: structured metrics and row-wise records for `results/tables/sweep.csv`.
 
 - **`src/plotting.py`**
-  - Converts tables/metrics into figures (PNG) without touching solver logic.
+  - Generates plots from the tidy metrics table (e.g., error vs alpha, loading vs alpha).
 
 - **Artifacts**
-  - `results/tables/*.csv` — metrics tables per suite/case
-  - `results/figures/*.png` — visualizations per suite/case
-  - `results/summary.md` — short write-up stub: what was tested + headline findings
-
----
-
-## Suggested Filename Convention
-
-- This doc: `Demo3_v0.1_Dev_Architecture.md`
-- Optional: keep diagrams in a dedicated `docs/` folder if you prefer.
+  - `results/tables/sweep.csv` — per-alpha metrics table
+  - `results/figures/abs_error_vs_alpha.png`
+  - `results/figures/loading_vs_alpha.png`
+  - `results/summary.md` — short write-up stub with headline findings and caveats
