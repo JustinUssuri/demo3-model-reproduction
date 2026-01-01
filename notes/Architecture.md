@@ -1,6 +1,7 @@
-# Demo3 v0.1 — Development Architecture (Aligned with Tech Design)
+# Demo3 v0.1 -- Development Architecture (PyPSA DC LOPF vs AC PF)
 
-This document summarizes the **runtime dataflow**, **module dependencies**, and **module boundaries** for Demo3 v0.1, aligned to the toy GB-inspired DC vs AC agreement study.
+This document summarizes the runtime dataflow, module dependencies, and module boundaries for
+Demo3 v0.1, aligned to the PRD objective: DC vs AC agreement across a controlled stress sweep.
 
 ---
 
@@ -8,16 +9,20 @@ This document summarizes the **runtime dataflow**, **module dependencies**, and 
 
 ```mermaid
 flowchart TD
-  A[User / CLI<br/>run_experiments.py] --> B[Experiment Orchestrator<br/>parse args, select sweep]
-  B --> C[Case Factory<br/>src/cases.py<br/>3-bus toy network + alpha grid]
-  C --> D1[DC Solver<br/>src/dc_flow.py<br/>lossless DC flow]
-  C --> D2["AC Reference\nsrc/ac_flow.py\npandapower AC flow"]
-  D1 --> E[Metrics Engine<br/>src/metrics.py<br/>flow errors + congestion consistency + convergence]
-  D2 --> E
-  E --> F1[Results Table<br/>results/tables/sweep.csv]
-  E --> F2[Plotting<br/>src/plotting.py<br/>results/figures/*.png]
-  F1 --> G[Write-up Stub<br/>results/summary.md]
-  F2 --> G
+  A[User or CLI: run_experiments.py] --> B[Experiment Orchestrator: parse args, select sweep]
+  B --> C[Case Factory: src/cases.py, toy network spec + alpha grid]
+
+  C --> D[PyPSA Network Builder: src/pypsa_model.py, network-constrained]
+  D --> E1[DC LOPF: src/opf.py, PyPSA + HiGHS]
+  D --> E2[AC PF: src/ac_flow.py, PyPSA pf]
+
+  E1 --> F[Metrics Engine: src/metrics.py, DC-AC errors + congestion consistency]
+  E2 --> F
+
+  F --> G1[Results Tables: results/tables/*.csv]
+  F --> G2[Plotting: src/plotting.py, results/figures/*.png]
+  G1 --> H[Write-up Stub: results/summary.md]
+  G2 --> H
 ```
 
 ---
@@ -32,27 +37,30 @@ flowchart LR
 
   subgraph Core
     CASES[src/cases.py]
-    DC[src/dc_flow.py]
+    MODEL[src/pypsa_model.py]
+    OPF[src/opf.py]
     AC[src/ac_flow.py]
     MET[src/metrics.py]
     PLOT[src/plotting.py]
   end
 
   subgraph Artifacts
-    TBL[results/tables/sweep.csv]
+    TBL[results/tables/*.csv]
     FIG[results/figures/*.png]
     SUM[results/summary.md]
   end
 
   CLI --> CASES
-  CLI --> DC
+  CLI --> MODEL
+  CLI --> OPF
   CLI --> AC
   CLI --> MET
   CLI --> PLOT
 
-  CASES --> DC
-  CASES --> AC
-  DC --> MET
+  CASES --> MODEL
+  MODEL --> OPF
+  MODEL --> AC
+  OPF --> MET
   AC --> MET
   MET --> TBL
   MET --> PLOT
@@ -65,27 +73,33 @@ flowchart LR
 
 ## 3) Module Boundaries (v0.1)
 
-- **`src/cases.py`**
-  - Defines the 3-bus toy network and alpha sweep grid.
-  - Outputs: buses/branches, injections (P), and case labels/parameters.
+- `src/cases.py`
+  - Defines the toy network spec and alpha sweep grid.
+  - Outputs: structured inputs for buses/lines/gens/loads and scenario parameters.
 
-- **`src/dc_flow.py`**
-  - Computes lossless DC flows for each case.
-  - Outputs: per-branch active power flows, optional angles, feasibility flags.
+- `src/pypsa_model.py`
+  - Builds a PyPSA `Network` with buses/lines/generators/loads and snapshots.
+  - Encodes the network-constrained topology used for DC vs AC comparison.
 
-- **`src/ac_flow.py`**
-  - AC reference solver using pandapower.
-  - Outputs: per-branch active power flows, optional voltage magnitudes/angles, convergence flag.
+- `src/opf.py`
+  - Runs PyPSA LOPF using HiGHS by default (configurable to gurobi).
+  - Outputs: solved network with dispatch, flows, and shadow prices.
 
-- **`src/metrics.py`**
-  - Computes flow errors and congestion indicator consistency across the sweep.
-  - Outputs: structured metrics and row-wise records for `results/tables/sweep.csv`.
+- `src/ac_flow.py`
+  - Runs PyPSA AC power flow (`Network.pf`) on the network-constrained case.
+  - Outputs: line flows, voltage angles/magnitudes, convergence flag.
 
-- **`src/plotting.py`**
-  - Generates plots from the tidy metrics table (e.g., error vs alpha, loading vs alpha).
+- `src/metrics.py`
+  - Computes DC-AC flow errors and congestion consistency.
+  - Outputs: tidy metrics rows and `results/tables/*.csv`.
 
-- **Artifacts**
-  - `results/tables/sweep.csv` — per-alpha metrics table
-  - `results/figures/abs_error_vs_alpha.png`
-  - `results/figures/loading_vs_alpha.png`
-  - `results/summary.md` — short write-up stub with headline findings and caveats
+- `src/plotting.py`
+  - Generates plots from the metrics table (DC-AC error, congestion).
+
+- Artifacts
+  - `results/tables/*.csv` -- per-alpha metrics table(s)
+  - `results/figures/*.png` -- comparison plots
+  - `results/summary.md` -- short write-up with headline findings and caveats
+
+- Optional legacy baseline
+  - `src/dc_flow.py` may remain as a non-primary reference, but must not be the main solver.

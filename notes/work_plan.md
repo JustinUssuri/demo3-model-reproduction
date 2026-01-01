@@ -1,125 +1,139 @@
-# Demo3 v0.1 开发计划
+# Demo3 v0.1 Development Plan
 
-目标：基于 3-bus toy network 的单一 alpha 扫描，完成 DC vs AC 一致性评估的最小闭环（结果表 + 两张关键图 + 结论摘要）。
+Goal: Based on a 3-bus toy network, run a single alpha sweep and complete the minimal closed loop
+for DC vs AC agreement (PyPSA LOPF vs PyPSA AC PF).
 
-范围与约束：
-- 仅做单一维度 stress sweep（alpha scaling）。
-- 不做 OPF、不做随机性、不做多网络对比。
-- AC 参考求解使用 pandapower（如有必要再考虑替代）。
-
----
-
-## 里程碑与交付物
-
-M1. 项目骨架与数据结构
-- 定义 `src/` 基础模块与结果目录结构。
-- 明确 case 数据结构（buses/lines/injections/limits/alpha）。
-- 交付：可加载的 base case + alpha grid。
-
-M2. DC 与 AC 求解闭环
-- 实现 `src/dc_flow.py`（lossless DC flow）。
-- 实现 `src/ac_flow.py`（pandapower AC flow）。
-- 交付：单个 alpha case 可同时跑通 DC/AC 并输出 line flows。
-
-M3. 指标与结果表
-- 实现 `src/metrics.py`：abs/rel error、congestion 一致性、AC 收敛标记。
-- 输出 `results/tables/sweep.csv`（每个 alpha 一行）。
-- 交付：完整 sweep 表。
-
-M4. 绘图与摘要
-- 实现 `src/plotting.py`：error vs alpha、loading vs alpha。
-- 生成 `results/figures/*.png` 与 `results/summary.md`。
-- 交付：两张核心图 + 简短结论。
-
-M5. 运行入口与文档更新
-- `run_experiments.py` 串联全流程。
-- 更新 README/assumptions（如有）。
-- 交付：一条命令可复现实验。
+Scope and constraints:
+- Use PyPSA `Network` as the core modeling container.
+- DC/linear power flow must be solved via PyPSA LOPF (no hand-written DC solver as main path).
+- AC reference uses PyPSA `Network.pf` on the same topology.
+- Default solver is HiGHS; allow config switch to gurobi without hard dependency.
+- Keep outputs in `results/tables/*.csv`, `results/figures/*.png`, `results/summary.md`.
 
 ---
 
-## 微任务清单（ADHD 友好）
+## Milestones and deliverables
 
-原则：每个任务 5–20 分钟内完成，完成就勾掉；一次只做一个模块的小步。
+M1. Project skeleton and data structures
+- Define base modules under `src/` and result directory structure.
+- Define case data structure (buses/lines/gens/loads/limits/alpha).
+- Deliverable: loadable base case + alpha grid.
 
-### 0) 准备与骨架
-- [x] 建立 `src/` 与 `results/` 目录（若已存在则跳过）。
-- [x] 新建空文件：`src/cases.py`、`src/dc_flow.py`、`src/ac_flow.py`、`src/metrics.py`、`src/plotting.py`、`run_experiments.py`。
-- [x] 在 `results/` 下建 `tables/` 与 `figures/` 子目录。
-- [x] 在 `run_experiments.py` 写一个最小 `main()` 打印 "ok"。
-- [x] 运行一次入口脚本，确认基础可执行。
+M2. PyPSA network builder
+- Implement `src/pypsa_model.py` to build a `Network` with buses/lines/gens/loads and snapshots.
+- Deliverable: a single alpha snapshot can be built with the constrained network topology.
 
-### 1) `src/cases.py`（先做数据形状）
-- [ ] 写一个 `make_base_case()` 函数返回基础参数 dict。
-- [ ] 在 dict 中放入 buses 列表（N/M/S）。
-- [ ] 在 dict 中放入 lines 列表（L1/L2，含 r/x/limit）。
-- [ ] 加一个可选的 L3 开关字段（默认关闭）。
-- [ ] 写 `alpha_grid(start, stop, step)` 返回 list。
-- [ ] 写 `make_cases()` 把 base case + alpha 组合成 case 列表。
-- [ ] 在文件底部加一个简短的 `__main__` 自检（打印 case 数量）。
-- [ ] 手动运行自检一次，确认无异常。
+M3. DC LOPF and AC PF solve loop
+- Implement `src/opf.py` to run LOPF with solver selection (HiGHS default).
+- Implement `src/ac_flow.py` to run PyPSA AC power flow on the constrained network.
+- Deliverable: a single alpha snapshot can run DC LOPF and AC PF successfully.
 
-### 2) `src/dc_flow.py`
-- [ ] 定义 `solve_dc(case)`，输入单个 case dict。
-- [ ] 从 case 中取线路 x、limit 与 injections。
-- [ ] 写最小 DC flow 计算（链式 3-bus 可先用解析式）。
-- [ ] 返回结构化结果 dict：`line_flows`, `angles`, `feasible`。
-- [ ] 对 baseline case 运行一次，打印 L1/L2 flow。
-- [ ] 将结果格式固定（后续 AC/metrics 依赖）。
+M4. Metrics and results table
+- Implement `src/metrics.py`:
+  - DC-AC flow errors and congestion consistency
+  - AC convergence flag
+- Output `results/tables/sweep.csv` (one row per alpha).
+- Deliverable: full sweep table.
 
-### 3) `src/ac_flow.py`
-- [ ] 确认 pandapower 已可导入（失败就先记 TODO）。
-- [ ] 写 `build_pp_network(case)`，仅组建 buses/lines/gens/loads。
-- [ ] 写 `solve_ac(case)`，调用 pandapower 运行 power flow。
-- [ ] 返回结构化结果 dict：`line_flows`, `vm`, `va`, `converged`。
-- [ ] 用 baseline case 试跑一次，记录是否收敛。
+M5. Plots and summary
+- Implement `src/plotting.py`:
+  - DC vs AC error plot
+  - congestion consistency plot
+  - loading vs alpha (per line)
+- Generate `results/figures/*.png` and `results/summary.md`.
+- Deliverable: key plots + short conclusion.
 
-### 4) `src/metrics.py`
-- [ ] 写 `compute_errors(dc, ac)` 返回 abs/rel error。
-- [ ] 写 `compute_loading(flow, limit)` 计算 loading。
-- [ ] 写 `congestion_match(dc, ac)` 输出 top-1 一致性布尔值。
-- [ ] 写 `make_row(case, dc, ac)` 产出一行 dict（含 alpha）。
-- [ ] 写 `write_csv(rows, path)` 保存 sweep 表。
-- [ ] 用 2–3 个 case 做一次小验证并输出 CSV。
-
-### 5) `src/plotting.py`
-- [ ] 写 `load_table(path)` 读取 `results/tables/sweep.csv`。
-- [ ] 写 `plot_abs_error(df, out_path)` 输出误差图。
-- [ ] 写 `plot_loading(df, out_path)` 输出 loading 对比图。
-- [ ] 用小表跑一遍，确认文件生成。
-
-### 6) `run_experiments.py`（串联）
-- [ ] 解析 CLI 参数（至少支持 step/alpha range）。
-- [ ] 调用 `make_cases()` 生成 sweep。
-- [ ] 对每个 case 依次跑 DC/AC/metrics。
-- [ ] 写入 `results/tables/sweep.csv`。
-- [ ] 生成两张图到 `results/figures/`。
-- [ ] 生成 `results/summary.md`（先写固定模板）。
-- [ ] 端到端跑一次，确保无异常。
-
-### 7) 文档同步
-- [ ] 更新 README：如何运行 sweep。
-- [ ] 更新 assumptions：明确 DC 假设与 toy network 限制。
+M6. Run entrypoint and docs
+- `run_experiments.py` wires the full pipeline.
+- Update README with run instructions and solver notes.
+- Deliverable: one command can reproduce the experiment.
 
 ---
 
-## 更小的“下一步”建议（卡住就做这个）
-- [ ] 只完成 `src/cases.py` 的 base case + alpha grid。
-- [ ] 只让 `run_experiments.py` 打印出 alpha 列表。
-- [ ] 只让 `src/dc_flow.py` 输出 L1/L2 的两个数字。
+## Micro task list (ADHD friendly)
+
+Principle: each task should take 5-20 minutes. Check it off when done. Only do one small module step at a time.
+
+### 0) Prep and skeleton
+- [x] Create `src/` and `results/` directories (skip if already exist).
+- [x] Create empty files: `src/cases.py`, `src/metrics.py`, `src/plotting.py`, `run_experiments.py`.
+- [x] Create `src/pypsa_model.py`, `src/opf.py`, `src/ac_flow.py`.
+- [x] Create `tables/` and `figures/` under `results/`.
+- [x] Write a minimal `main()` in `run_experiments.py` that prints "ok".
+- [x] Run the entry script once to confirm it executes.
+
+### 1) `src/cases.py` (start with data shape)
+- [x] Write a `make_base_case()` function that returns a base dict.
+- [x] Put a buses list into the dict (N/M/S).
+- [x] Put a lines list into the dict (L1/L2, with r/x/limit).
+- [x] Add an optional L3 toggle field (default off).
+- [x] Write `make_cases()` to combine the base case + alpha into a case list.
+- [x] Add a short `__main__` self-check at the bottom (print case count).
+- [x] Manually run the self-check once, confirm no exceptions.
+
+### 2) `src/pypsa_model.py`
+- [x] Write `build_network(case, snapshots)` that returns a PyPSA `Network`.
+- [x] Add buses, lines (or links), generators, and loads.
+- [x] Encode the alpha sweep as snapshots with time series for load and wind availability.
+- [ ] Try building a single alpha snapshot and print basic network stats.
+
+### 3) `src/opf.py`
+- [x] Write `solve_lopf(network, solver_name)` with HiGHS default.
+- [ ] Expose a CLI/config option to switch to gurobi if available.
+- [x] Return solved network and status flag.
+- [ ] Run once on the baseline case and record success.
+
+### 4) `src/ac_flow.py`
+- [x] Write `solve_ac_pf(network)` and run PyPSA AC power flow.
+- [x] Return a structured result dict: `line_flows`, `vm`, `va`, `converged`.
+- [ ] Try one run on the baseline case and record convergence.
+
+### 5) `src/metrics.py`
+- [ ] Write `compute_dc_ac_errors(dc, ac)` for abs/rel error.
+- [ ] Write `compute_congestion(flow, limit)` to compute loading and match flags.
+- [ ] Write `make_row(case, metrics)` to build one row dict (include alpha).
+- [ ] Write `write_csv(rows, path)` to save the sweep table.
+- [ ] Validate on 2-3 cases and output a CSV once.
+
+### 6) `src/plotting.py`
+- [ ] Write `load_table(path)` to read `results/tables/sweep.csv`.
+- [ ] Write `plot_dc_ac_error(df, out_path)` for DC vs AC error.
+- [ ] Write `plot_congestion_match(df, out_path)` for congestion consistency.
+- [ ] Write `plot_loading(df, out_path)` for loading vs alpha.
+- [ ] Run once on a small table and confirm files are generated.
+
+### 7) `run_experiments.py` (end-to-end wiring)
+- [ ] Parse CLI args (alpha range/step, solver).
+- [ ] Call `make_cases()` to generate the sweep.
+- [ ] For each case, build a network, run DC LOPF, run AC PF.
+- [ ] Compute DC-AC metrics.
+- [ ] Write `results/tables/sweep.csv`.
+- [ ] Generate plots into `results/figures/`.
+- [ ] Generate `results/summary.md` (start with a fixed template).
+- [ ] Run end-to-end once, confirm no exceptions.
+
+### 8) Docs sync
+- [ ] Update README: how to run the sweep and solver selection.
+- [ ] Update assumptions: clarify DC assumptions and toy network limits.
 
 ---
 
-## 验收标准（v0.1）
-
-- DC/AC 在 baseline（alpha≈1.0）可同时收敛。
-- Sweep 端到端跑通，生成 CSV + 至少两张图。
-- `results/summary.md` 描述 “DC 在何区间可靠” 的结论与限制。
+## Even smaller "next step" suggestions (if stuck)
+- [ ] Only finish `src/pypsa_model.py` with a single alpha snapshot.
+- [ ] Only make `run_experiments.py` print the alpha list.
+- [ ] Only make `src/opf.py` return solver status on one case.
 
 ---
 
-## 待确认
+## Acceptance criteria (v0.1)
 
-- alpha 的步长选择（0.05 还是 0.1）。
-- 线路参数最终数值与 base MVA。
-- 是否需要 L3 弱联络线作为可选配置。
+- DC LOPF and AC PF both converge on the baseline (alpha ~= 1.0).
+- Sweep runs end-to-end, generates CSV + at least two plots.
+- `results/summary.md` describes DC vs AC agreement and limitations.
+
+---
+
+## Pending confirmation
+
+- Alpha step size (0.05 or 0.1).
+- Final line parameters and base MVA.
