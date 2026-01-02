@@ -75,21 +75,21 @@ Principle: each task should take 5-20 minutes. Check it off when done. Only do o
 - [x] Write `build_network(case, snapshots)` that returns a PyPSA `Network`.
 - [x] Add buses, lines (or links), generators, and loads.
 - [x] Encode the alpha sweep as snapshots with time series for load and wind availability.
-- [ ] Try building a single alpha snapshot and print basic network stats.
+- [x] Try building a single alpha snapshot and print basic network stats.
 
 ### 3) `src/opf.py`
 - [x] Write `solve_lopf(network, solver_name)` with HiGHS default.
 - [ ] Expose a CLI/config option to switch to gurobi if available.
 - [x] Return solved network and status flag.
-- [ ] Run once on the baseline case and record success.
+- [x] Run once on the baseline case and record success.
 
 ### 4) `src/ac_flow.py`
 - [x] Write `solve_ac_pf(network)` and run PyPSA AC power flow.
 - [x] Return a structured result dict: `line_flows`, `vm`, `va`, `converged`.
-- [ ] Try one run on the baseline case and record convergence.
+- [x] Try one run on the baseline case and record convergence (converged: False).
 
 ### 5) `src/metrics.py`
-- [ ] Write `compute_dc_ac_errors(dc, ac)` for abs/rel error.
+- [x] Write `compute_dc_ac_errors(dc, ac)` for abs/rel error.
 - [ ] Write `compute_congestion(flow, limit)` to compute loading and match flags.
 - [ ] Write `make_row(case, metrics)` to build one row dict (include alpha).
 - [ ] Write `write_csv(rows, path)` to save the sweep table.

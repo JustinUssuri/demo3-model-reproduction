@@ -3,8 +3,9 @@ channels:
   - conda-forge
 dependencies:
   - python=3.10
-  - numpy
+  - numpy~=2.0
   - pandas
+  - pytest
   - matplotlib
   - pandapower
   - pypsa
