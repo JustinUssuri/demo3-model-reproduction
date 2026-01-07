@@ -1,0 +1,11 @@
+primal_feasibility_tolerance = 0.0001
+dual_feasibility_tolerance = 1e-05
+ipm_optimality_tolerance = 1e-06
+presolve = on
+run_crossover = True
+parallel = off
+threads = 4
+solution_file = /tmp/pypsa-solve72fq20wa.sol
+write_solution_to_file = True
+write_solution_style = 1
+log_to_console = True

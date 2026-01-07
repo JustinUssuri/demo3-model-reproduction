@@ -3,9 +3,12 @@ channels:
   - conda-forge
 dependencies:
   - python=3.10
-  - numpy~=2.0
+  - numpy<2.0
   - pandas
   - pytest
   - matplotlib
   - pandapower
   - pypsa
+  - highs<1.7
+  - glpk
+  - xarray<2025

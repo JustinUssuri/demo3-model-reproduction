@@ -1,56 +1,64 @@
-# Demo3 – Model Reproduction
+# Model Reproduction
 
-This project reproduces and critiques an energy system model from the literature
-using small, controlled PyPSA cases. The current focus is a simple 3-bus system
-with a wind generator, a gas slack generator, and an optional line extension.
+## Project overview
+This repository runs a small PyPSA-based experiment comparing DC linear optimal power flow (LOPF) decisions to AC power-flow checks on a toy 3-bus network. A parameter sweep scales wind availability (`alpha`) and records DC vs AC line-flow errors and congestion agreement. The workflow is meant for quick reproducibility rather than generality; see `summary.md` for observations and limitations.
 
-Current focus areas:
-- modeling choices and assumptions
-- AC vs DC decisions
-- scope and limitations of the model
-
-## Status
-- AC power flow wrapper implemented
-- Linear OPF wrapper implemented (requires a PyPSA-supported solver)
-- Case generator and PyPSA network builder implemented
-- DC flow, metrics, plotting, and experiment runner are stubs
-
-## Repository layout
-- `run_experiments.py`: placeholder entrypoint
-- `src/cases.py`: base case plus alpha sweep case generator
-- `src/pypsa_model.py`: build a PyPSA `Network` from a case dict
-- `src/ac_flow.py`: AC power flow wrapper
-- `src/opf.py`: linear OPF wrapper
-- `src/dc_flow.py`, `src/metrics.py`, `src/plotting.py`: stubs
-- `notes/`: design notes and planning docs
-
-## Setup
-Create the conda environment defined in `environment.yml`:
+## Quickstart
+Create the environment (conda is the preferred method in this repo):
 ```bash
 conda env create -f environment.yml
-conda activate demo3-model-reproduction
+conda activate model-reproduction
 ```
 
-## Quick start
-Run a single case and inspect both AC PF and LOPF outputs:
+Run the end-to-end experiment (writes the CSV table and figures):
+```bash
+python run_experiments.py
+```
+
+Regenerate plots from an existing table:
 ```bash
 python - <<'PY'
-from src.cases import make_cases
-from src.pypsa_model import build_network
-from src.ac_flow import solve_ac_pf
-from src.opf import solve_lopf
+from pathlib import Path
 
-case = make_cases(alpha_min=0.5, alpha_max=0.5, alpha_step=0.1)[0]
-network = build_network(case)
+from src.plotting import load_table, plot_congestion_match, plot_dc_ac_error, plot_loading
 
-pf = solve_ac_pf(network)
-print("pf_converged", pf["converged"])
-
-opf = solve_lopf(network)
-print("objective", opf["objective"])
+df = load_table("results/tables/sweep.csv")
+out_dir = Path("results/figures")
+plot_dc_ac_error(df, out_dir / "dc_ac_error.png")
+plot_congestion_match(df, out_dir / "congestion_match.png")
+plot_loading(df, out_dir / "loading.png")
 PY
 ```
 
-Notes:
-- `alpha` scales the wind generator availability (`p_max_pu`).
-- LOPF requires a solver supported by PyPSA (for example HiGHS via `highspy`).
+Expected outputs:
+- `results/tables/sweep.csv`
+- `results/figures/dc_ac_error.png`
+- `results/figures/congestion_match.png`
+- `results/figures/loading.png`
+
+## Repository structure
+- `run_experiments.py`: end-to-end sweep runner (LOPF → AC PF → metrics → plots).
+- `src/cases.py`: case generator and alpha sweep definition.
+- `src/pypsa_model.py`: builds a PyPSA `Network` from a case dict.
+- `src/opf.py`: DC LOPF solve wrapper (selects solver via `LOPF_SOLVER`).
+- `src/ac_flow.py`: AC power-flow wrapper and convergence handling.
+- `src/metrics.py`: error/congestion metrics and CSV writing.
+- `src/plotting.py`: plotting utilities for the sweep outputs.
+- `environment.yml`: pinned dependencies for a reproducible environment.
+
+## Reproducibility notes
+- Dependency pins live in `environment.yml` (notably `python=3.10`, `numpy<2.0`, `xarray<2025`, `highs<1.7`).
+- The LOPF solver defaults to `highs`; override with `LOPF_SOLVER` if you want another PyPSA-supported solver.
+- `run_experiments.py` uses `alpha_min=0.8`, `alpha_max=1.0`, `alpha_step=0.1`; changing these changes the sweep output.
+
+## Results
+- `results/tables/sweep.csv`
+- `results/figures/dc_ac_error.png`
+- `results/figures/congestion_match.png`
+- `results/figures/loading.png`
+- `summary.md` (observations and limitations write-up)
+
+## Troubleshooting
+- Solver errors in LOPF: ensure the conda environment is active, and try `export LOPF_SOLVER=highs` or `export LOPF_SOLVER=glpk`.
+- AC PF does not converge: check the `ac_converged` column in `results/tables/sweep.csv` and reduce the `alpha` sweep range in `run_experiments.py`.
+- Plotting failures in headless environments: run `python run_experiments.py` (it sets `MPLBACKEND=Agg`) or set `MPLBACKEND=Agg` before custom plotting.

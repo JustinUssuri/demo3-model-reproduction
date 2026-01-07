@@ -5,10 +5,20 @@ from typing import Iterable
 import pandas as pd
 import pypsa
 
+try:
+    from src.cases import make_cases
+except ModuleNotFoundError:
+    from cases import make_cases
+
 
 def build_network(case: dict, snapshots: Iterable[float] | None = None) -> pypsa.Network:
     if snapshots is None:
         snapshots = [case.get("alpha", 0.0)]
+
+    base_mva = float(case.get("base_mva", 1.0))
+    if base_mva <= 0:
+        raise ValueError("base_mva must be positive")
+    line_scale = 1.0 / base_mva
 
     network = pypsa.Network()
     network.set_snapshots(list(snapshots))
@@ -22,8 +32,8 @@ def build_network(case: dict, snapshots: Iterable[float] | None = None) -> pypsa
             line["id"],
             bus0=line["from"],
             bus1=line["to"],
-            r=line["r"],
-            x=line["x"],
+            r=float(line["r"]) * line_scale,
+            x=float(line["x"]) * line_scale,
             s_nom=line["s_nom"],
         )
 
@@ -57,3 +67,38 @@ def build_network(case: dict, snapshots: Iterable[float] | None = None) -> pypsa
         network.loads_t.p_set = load_p_set
 
     return network
+
+
+def _basic_stats(network: pypsa.Network) -> dict:
+    snapshots = list(network.snapshots)
+    total_load = 0.0
+    if not network.loads_t.p_set.empty:
+        total_load = float(network.loads_t.p_set.sum(axis=1).iloc[0])
+
+    total_gen = 0.0
+    if not network.generators.empty:
+        total_gen = float(network.generators.p_nom.sum())
+
+    total_line_rating = 0.0
+    if not network.lines.empty:
+        total_line_rating = float(network.lines.s_nom.sum())
+
+    return {
+        "snapshots": snapshots,
+        "bus_count": len(network.buses),
+        "line_count": len(network.lines),
+        "gen_count": len(network.generators),
+        "load_count": len(network.loads),
+        "total_load_mw": total_load,
+        "total_gen_p_nom_mw": total_gen,
+        "total_line_s_nom_mva": total_line_rating,
+    }
+
+
+if __name__ == "__main__":
+    case = make_cases(alpha_min=1.0, alpha_max=1.0, alpha_step=0.1)[0]
+    network = build_network(case)
+    stats = _basic_stats(network)
+    print("basic_network_stats")
+    for key, value in stats.items():
+        print(f"{key}={value}")

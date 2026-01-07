@@ -79,7 +79,7 @@ Principle: each task should take 5-20 minutes. Check it off when done. Only do o
 
 ### 3) `src/opf.py`
 - [x] Write `solve_lopf(network, solver_name)` with HiGHS default.
-- [ ] Expose a CLI/config option to switch to gurobi if available.
+- [x] Expose a CLI/config option to switch to gurobi if available.
 - [x] Return solved network and status flag.
 - [x] Run once on the baseline case and record success.
 
@@ -90,17 +90,17 @@ Principle: each task should take 5-20 minutes. Check it off when done. Only do o
 
 ### 5) `src/metrics.py`
 - [x] Write `compute_dc_ac_errors(dc, ac)` for abs/rel error.
-- [ ] Write `compute_congestion(flow, limit)` to compute loading and match flags.
-- [ ] Write `make_row(case, metrics)` to build one row dict (include alpha).
-- [ ] Write `write_csv(rows, path)` to save the sweep table.
-- [ ] Validate on 2-3 cases and output a CSV once.
+- [x] Write `compute_congestion(flow, limit)` to compute loading and match flags.
+- [x] Write `make_row(case, metrics)` to build one row dict (include alpha).
+- [x] Write `write_csv(rows, path)` to save the sweep table.
+- [x] Validate on 2-3 cases and output a CSV once.
 
 ### 6) `src/plotting.py`
-- [ ] Write `load_table(path)` to read `results/tables/sweep.csv`.
-- [ ] Write `plot_dc_ac_error(df, out_path)` for DC vs AC error.
-- [ ] Write `plot_congestion_match(df, out_path)` for congestion consistency.
-- [ ] Write `plot_loading(df, out_path)` for loading vs alpha.
-- [ ] Run once on a small table and confirm files are generated.
+- [x] Write `load_table(path)` to read `results/tables/sweep.csv`.
+- [x] Write `plot_dc_ac_error(df, out_path)` for DC vs AC error.
+- [x] Write `plot_congestion_match(df, out_path)` for congestion consistency.
+- [x] Write `plot_loading(df, out_path)` for loading vs alpha.
+- [x] Run once on a small table and confirm files are generated.
 
 ### 7) `run_experiments.py` (end-to-end wiring)
 - [ ] Parse CLI args (alpha range/step, solver).

@@ -8,7 +8,9 @@ import pypsa
 def solve_ac_pf(network: pypsa.Network) -> dict:
     result: Any = network.pf()
 
-    if isinstance(result, tuple):
+    if isinstance(result, dict) and "converged" in result:
+        converged = bool(result["converged"].to_numpy().all())
+    elif isinstance(result, tuple):
         converged = bool(result[0])
     elif isinstance(result, bool):
         converged = result
